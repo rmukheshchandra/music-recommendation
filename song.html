@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundwave — Music Recommendation</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --accent: #c084fc;
+    --accent2: #818cf8;
+    --accent3: #f472b6;
+    --text: #f1f0f5;
+    --muted: #8b8a9a;
+    --border: rgba(255,255,255,0.08);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  /* GRADIENT ORBS */
+  .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(80px); opacity: 0.18; z-index: 0; }
+  .orb-1 { width: 500px; height: 500px; background: #7c3aed; top: -150px; left: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: #be185d; bottom: 0; right: -100px; }
+  .orb-3 { width: 300px; height: 300px; background: #4338ca; top: 40%; left: 50%; }
+
+  /* LAYOUT */
+  .wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 2rem; }
+
+  /* NAV */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.5rem 0; border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .logo span { font-style: italic; }
+  nav ul { display: flex; gap: 2rem; list-style: none; }
+  nav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+  nav a:hover { color: var(--text); }
+
+  /* HERO */
+  .hero { padding: 5rem 0 3rem; text-align: center; }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(192,132,252,0.12); border: 1px solid rgba(192,132,252,0.25);
+    border-radius: 100px; padding: 6px 16px;
+    font-size: 0.78rem; color: var(--accent); font-weight: 500;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+  .hero-tag::before { content: '♪'; font-size: 1rem; }
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    font-weight: 900; line-height: 1.1;
+    letter-spacing: -2px;
+    margin-bottom: 1.25rem;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 1.1rem; max-width: 540px; margin: 0 auto 2.5rem; line-height: 1.7; }
+
+  /* SEARCH BAR */
+  .search-wrap {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 8px 8px 8px 20px;
+    max-width: 580px; margin: 0 auto 3.5rem;
+    transition: border-color 0.2s;
+  }
+  .search-wrap:focus-within { border-color: rgba(192,132,252,0.4); }
+  .search-wrap input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text); font-size: 1rem; font-family: 'DM Sans', sans-serif;
+  }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-btn {
+    background: linear-gradient(135deg, #7c3aed, #4338ca);
+    color: white; border: none; border-radius: 10px;
+    padding: 10px 22px; font-size: 0.9rem; font-weight: 500;
+    cursor: pointer; white-space: nowrap; transition: opacity 0.2s, transform 0.1s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .search-btn:hover { opacity: 0.9; }
+  .search-btn:active { transform: scale(0.97); }
+
+  /* MOOD PILLS */
+  .mood-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 4rem; }
+  .mood-pill {
+    padding: 8px 18px; border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted);
+    font-size: 0.85rem; font-weight: 500; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mood-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .mood-pill.active { background: rgba(192,132,252,0.15); border-color: var(--accent); color: var(--accent); }
+  .mood-pill .pill-icon { margin-right: 6px; }
+
+  /* SECTION TITLES */
+  .section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.5rem; }
+  .section-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; }
+  .see-all { color: var(--accent); font-size: 0.85rem; text-decoration: none; font-weight: 500; }
+  .see-all:hover { text-decoration: underline; }
+
+  /* CARDS GRID */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 3.5rem; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+    position: relative;
+  }
+  .card:hover { transform: translateY(-4px); border-color: rgba(192,132,252,0.3); }
+  .card-art {
+    width: 100%; aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 3.5rem; position: relative; overflow: hidden;
+  }
+  .card-art::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.5));
+  }
+  .card-body { padding: 14px; }
+  .card-title { font-weight: 500; font-size: 0.9rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-sub { color: var(--muted); font-size: 0.78rem; }
+  .card-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .card-genre {
+    font-size: 0.72rem; font-weight: 500;
+    background: rgba(129,140,248,0.15); color: var(--accent2);
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .card-rating { color: #fbbf24; font-size: 0.8rem; }
+
+  /* PLAY BUTTON OVERLAY */
+  .play-overlay {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(124,58,237,0.9); display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s; z-index: 2;
+    font-size: 1.1rem;
+  }
+  .card:hover .play-overlay { opacity: 1; }
+
+  /* GENRES STRIP */
+  .genres { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 3.5rem; scrollbar-width: none; }
+  .genres::-webkit-scrollbar { display: none; }
+  .genre-chip {
+    flex-shrink: 0; padding: 12px 20px; border-radius: 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-size: 0.85rem; font-weight: 500; cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .genre-chip:hover { border-color: var(--accent); }
+  .genre-chip.active { background: rgba(192,132,252,0.12); border-color: var(--accent); color: var(--accent); }
+  .genre-icon { font-size: 1.2rem; }
+
+  /* TRENDING LIST */
+  .trending { display: flex; flex-direction: column; gap: 0; margin-bottom: 3.5rem; }
+  .track-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 16px; border-radius: 12px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .track-row:hover { background: var(--surface); }
+  .track-num { width: 24px; color: var(--muted); font-size: 0.85rem; text-align: center; flex-shrink: 0; }
+  .track-thumb { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0; }
+  .track-info { flex: 1; min-width: 0; }
+  .track-name { font-weight: 500; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-artist { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+  .track-duration { color: var(--muted); font-size: 0.82rem; flex-shrink: 0; }
+  .track-badge {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.05em;
+    padding: 3px 8px; border-radius: 6px; flex-shrink: 0;
+  }
+  .badge-hot { background: rgba(244,114,182,0.15); color: var(--accent3); }
+  .badge-new { background: rgba(52,211,153,0.15); color: #34d399; }
+
+  /* ARTIST SPOTLIGHT */
+  .spotlight {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2rem; display: flex;
+    align-items: center; gap: 2rem; margin-bottom: 3.5rem;
+    overflow: hidden; position: relative;
+  }
+  .spotlight::before {
+    content: ''; position: absolute; right: -60px; top: -60px;
+    width: 240px; height: 240px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,58,237,0.2), transparent);
+    pointer-events: none;
+  }
+  .artist-avatar {
+    width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.8rem;
+    background: linear-gradient(135deg, #7c3aed22, #4338ca22);
+    border: 2px solid rgba(192,132,252,0.3);
+  }
+  .artist-info h3 { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+  .artist-info p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; max-width: 420px; }
+  .artist-stats { display: flex; gap: 1.5rem; margin-top: 1rem; }
+  .stat { }
+  .stat-num { font-weight: 700; font-size: 1rem; }
+  .stat-label { color: var(--muted); font-size: 0.75rem; }
+  .follow-btn {
+    background: linear-gradient(135deg, #7c3aed, #4338ca);
+    color: white; border: none; border-radius: 10px;
+    padding: 10px 24px; font-size: 0.9rem; font-weight: 500;
+    cursor: pointer; margin-top: 1.25rem; font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.2s;
+  }
+  .follow-btn:hover { opacity: 0.85; }
+
+  /* NOW PLAYING BAR */
+  .now-playing {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(17,17,24,0.92); backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border); z-index: 100;
+    padding: 12px 2rem;
+  }
+  .np-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; align-items: center; gap: 1.5rem;
+  }
+  .np-thumb { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; background: var(--surface2); flex-shrink: 0; }
+  .np-info { flex: 1; min-width: 0; }
+  .np-title { font-weight: 500; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np-artist { color: var(--muted); font-size: 0.78rem; }
+  .np-controls { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  .ctrl-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1.1rem; transition: color 0.15s; padding: 4px;
+  }
+  .ctrl-btn:hover { color: var(--text); }
+  .play-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #4338ca);
+    border: none; color: white; cursor: pointer; font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.15s;
+  }
+  .play-btn:hover { opacity: 0.85; }
+  .np-progress { flex: 2; display: flex; align-items: center; gap: 10px; }
+  .progress-bar { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; position: relative; cursor: pointer; }
+  .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 35%; }
+  .np-time { color: var(--muted); font-size: 0.75rem; white-space: nowrap; flex-shrink: 0; }
+
+  /* FOOTER */
+  footer { border-top: 1px solid var(--border); padding: 2.5rem 0; margin-bottom: 80px; }
+  .footer-inner { display: flex; justify-content: space-between; align-items: center; }
+  .footer-links { display: flex; gap: 2rem; }
+  .footer-links a { color: var(--muted); font-size: 0.83rem; text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--text); }
+  .footer-copy { color: var(--muted); font-size: 0.83rem; }
+
+  /* SEARCH RESULTS */
+  #results-section { display: none; margin-bottom: 3.5rem; }
+  .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+
+  /* WAVE ANIMATION */
+  @keyframes wave { 0%,100%{height:6px} 50%{height:22px} }
+  .wave-bars { display: flex; align-items: flex-end; gap: 3px; height: 24px; }
+  .wave-bars span {
+    display: block; width: 3px; border-radius: 3px; background: var(--accent);
+    animation: wave 1.2s ease-in-out infinite;
+  }
+  .wave-bars span:nth-child(2){animation-delay:.15s}
+  .wave-bars span:nth-child(3){animation-delay:.3s}
+  .wave-bars span:nth-child(4){animation-delay:.45s}
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="wrapper">
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">Sound<span>wave</span></div>
+    <ul>
+      <li><a href="#">Discover</a></li>
+      <li><a href="#">Charts</a></li>
+      <li><a href="#">Artists</a></li>
+      <li><a href="#">Playlists</a></li>
+    </ul>
+    <button class="search-btn" style="padding:8px 18px;font-size:0.85rem;" onclick="alert('Sign In')">Sign In</button>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-tag">AI-Powered Discovery</div>
+    <h1>Find music that <em>moves</em> your soul</h1>
+    <p>Personalized recommendations driven by your mood, taste, and listening history. Discover hidden gems and chart-toppers alike.</p>
+
+    <div class="search-wrap">
+      <input type="text" id="search-input" placeholder="Search artists, songs, genres…" />
+      <button class="search-btn" onclick="handleSearch()">Discover ↗</button>
+    </div>
+
+    <!-- MOOD PILLS -->
+    <div class="mood-row">
+      <button class="mood-pill" onclick="setMood(this,'Chill')"><span class="pill-icon">🌙</span>Chill</button>
+      <button class="mood-pill active" onclick="setMood(this,'Energetic')"><span class="pill-icon">⚡</span>Energetic</button>
+      <button class="mood-pill" onclick="setMood(this,'Happy')"><span class="pill-icon">☀️</span>Happy</button>
+      <button class="mood-pill" onclick="setMood(this,'Melancholy')"><span class="pill-icon">🌧️</span>Melancholy</button>
+      <button class="mood-pill" onclick="setMood(this,'Focus')"><span class="pill-icon">🎯</span>Focus</button>
+      <button class="mood-pill" onclick="setMood(this,'Romantic')"><span class="pill-icon">💜</span>Romantic</button>
+    </div>
+  </section>
+
+  <!-- SEARCH RESULTS SECTION -->
+  <section id="results-section">
+    <div class="section-header">
+      <h2 class="section-title" id="results-title">Search Results</h2>
+    </div>
+    <div class="results-grid" id="results-grid"></div>
+  </section>
+
+  <!-- GENRE CHIPS -->
+  <div class="section-header">
+    <h2 class="section-title">Browse Genres</h2>
+  </div>
+  <div class="genres">
+    <div class="genre-chip active" onclick="filterGenre(this,'All')"><span class="genre-icon">🎵</span> All</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Pop')"><span class="genre-icon">✨</span> Pop</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Hip-Hop')"><span class="genre-icon">🎤</span> Hip-Hop</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Electronic')"><span class="genre-icon">🎛️</span> Electronic</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Indie')"><span class="genre-icon">🎸</span> Indie</div>
+    <div class="genre-chip" onclick="filterGenre(this,'R&B')"><span class="genre-icon">🎹</span> R&B</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Jazz')"><span class="genre-icon">🎺</span> Jazz</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Classical')"><span class="genre-icon">🎻</span> Classical</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Metal')"><span class="genre-icon">🤘</span> Metal</div>
+    <div class="genre-chip" onclick="filterGenre(this,'Lo-fi')"><span class="genre-icon">☕</span> Lo-fi</div>
+  </div>
+
+  <!-- RECOMMENDED FOR YOU -->
+  <div class="section-header">
+    <h2 class="section-title">Recommended For You</h2>
+    <a href="#" class="see-all">See all →</a>
+  </div>
+  <div class="cards" id="recommended-cards">
+    <!-- injected by JS -->
+  </div>
+
+  <!-- TRENDING NOW -->
+  <div class="section-header">
+    <h2 class="section-title">Trending Now</h2>
+    <a href="#" class="see-all">See all →</a>
+  </div>
+  <div class="trending" id="trending-list">
+    <!-- injected by JS -->
+  </div>
+
+  <!-- ARTIST SPOTLIGHT -->
+  <div class="section-header">
+    <h2 class="section-title">Artist Spotlight</h2>
+  </div>
+  <div class="spotlight">
+    <div class="artist-avatar">🎤</div>
+    <div class="artist-info">
+      <h3>Aurora Vance</h3>
+      <p>An enigmatic voice from the underground synth-pop scene. Her latest EP "Neon Mirage" blends cinematic textures with raw, emotive lyrics that feel both ancient and futuristic.</p>
+      <div class="artist-stats">
+        <div class="stat"><div class="stat-num">4.2M</div><div class="stat-label">Monthly listeners</div></div>
+        <div class="stat"><div class="stat-num">38</div><div class="stat-label">Tracks</div></div>
+        <div class="stat"><div class="stat-num">12</div><div class="stat-label">Playlists</div></div>
+      </div>
+      <button class="follow-btn" onclick="this.textContent = this.textContent === '+ Follow' ? '✓ Following' : '+ Follow'; this.style.background = this.textContent.includes('Following') ? 'var(--surface2)' : 'linear-gradient(135deg, #7c3aed, #4338ca)'">+ Follow</button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="logo" style="font-size:1.2rem;">Sound<span>wave</span></div>
+      <div class="footer-links">
+        <a href="#">About</a>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Help</a>
+      </div>
+      <div class="footer-copy">© 2026 Soundwave</div>
+    </div>
+  </footer>
+
+</div>
+
+<!-- NOW PLAYING BAR -->
+<div class="now-playing">
+  <div class="np-inner">
+    <div class="np-thumb" id="np-thumb">🎵</div>
+    <div class="np-info">
+      <div class="np-title" id="np-title">Neon Mirage</div>
+      <div class="np-artist" id="np-artist">Aurora Vance</div>
+    </div>
+    <div class="np-progress">
+      <span class="np-time">1:23</span>
+      <div class="progress-bar" onclick="seek(event, this)">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <span class="np-time">3:47</span>
+    </div>
+    <div class="np-controls">
+      <button class="ctrl-btn" title="Shuffle" onclick="this.style.color = this.style.color === 'var(--accent)' ? 'var(--muted)' : 'var(--accent)'">⇌</button>
+      <button class="ctrl-btn" title="Previous">⏮</button>
+      <button class="play-btn" id="play-btn" onclick="togglePlay(this)">▶</button>
+      <button class="ctrl-btn" title="Next">⏭</button>
+      <button class="ctrl-btn" title="Like" onclick="this.style.color = this.style.color === 'var(--accent3)' ? 'var(--muted)' : 'var(--accent3)'">♥</button>
+    </div>
+    <div class="wave-bars" id="wave-anim" style="display:none">
+      <span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const songs = [
+  { title: 'Electric Dream', artist: 'Pulse Wave', genre: 'Electronic', icon: '🎛️', color: '#7c3aed22', rating: '★★★★★' },
+  { title: 'Midnight Run', artist: 'Ghost Riders', genre: 'Indie', icon: '🌙', color: '#0f172a', rating: '★★★★☆' },
+  { title: 'Golden Hour', artist: 'The Velvet Sky', genre: 'Pop', icon: '☀️', color: '#78350f22', rating: '★★★★★' },
+  { title: 'Deep Waters', artist: 'Coastal Echo', genre: 'R&B', icon: '🌊', color: '#0c4a6e22', rating: '★★★☆☆' },
+  { title: 'Neon Mirage', artist: 'Aurora Vance', genre: 'Electronic', icon: '🎤', color: '#4c1d9522', rating: '★★★★★' },
+  { title: 'Sacred Ground', artist: 'The Oak Trees', genre: 'Indie', icon: '🌿', color: '#14532d22', rating: '★★★★☆' },
+];
+
+const trending = [
+  { title: 'Purple Rain (Reimagined)', artist: 'Vesper Klein', duration: '4:22', badge: 'hot', icon: '💜', color: '#4c1d9533' },
+  { title: 'Tokyo Drift', artist: 'KYOTO.exe', duration: '3:08', badge: 'new', icon: '🏙️', color: '#1e293b' },
+  { title: 'Echoes of Yesterday', artist: 'Mira Solis', duration: '5:14', badge: null, icon: '🌅', color: '#7c2d1233' },
+  { title: 'Static Love', artist: 'Binary Hearts', duration: '3:41', badge: 'hot', icon: '📻', color: '#0f172a' },
+  { title: 'Jungle Fire', artist: 'Tropicana Club', duration: '4:02', badge: 'new', icon: '🔥', color: '#431407' },
+];
+
+function renderCards(data) {
+  return data.map(s => `
+    <div class="card" onclick="playTrack('${s.icon}','${s.title}','${s.artist}')">
+      <div class="card-art" style="background:${s.color || '#1a1a24'}">
+        <div class="play-overlay">▶</div>
+        <span>${s.icon}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${s.title}</div>
+        <div class="card-sub">${s.artist}</div>
+        <div class="card-meta">
+          <span class="card-genre">${s.genre}</span>
+          <span class="card-rating">${s.rating || '★★★★☆'}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderTrending(data) {
+  return data.map((t, i) => `
+    <div class="track-row" onclick="playTrack('${t.icon}','${t.title}','${t.artist}')">
+      <div class="track-num">${i + 1}</div>
+      <div class="track-thumb" style="background:${t.color || '#1a1a24'}">${t.icon}</div>
+      <div class="track-info">
+        <div class="track-name">${t.title}</div>
+        <div class="track-artist">${t.artist}</div>
+      </div>
+      ${t.badge ? `<span class="track-badge badge-${t.badge}">${t.badge.toUpperCase()}</span>` : ''}
+      <div class="track-duration">${t.duration}</div>
+    </div>`).join('');
+}
+
+document.getElementById('recommended-cards').innerHTML = renderCards(songs);
+document.getElementById('trending-list').innerHTML = renderTrending(trending);
+
+let isPlaying = false;
+function togglePlay(btn) {
+  isPlaying = !isPlaying;
+  btn.textContent = isPlaying ? '⏸' : '▶';
+  document.getElementById('wave-anim').style.display = isPlaying ? 'flex' : 'none';
+  if (isPlaying) animateProgress();
+}
+
+let progressVal = 35;
+let progressTimer;
+function animateProgress() {
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    if (!isPlaying) return clearInterval(progressTimer);
+    progressVal = Math.min(progressVal + 0.05, 100);
+    document.getElementById('progress-fill').style.width = progressVal + '%';
+    if (progressVal >= 100) { progressVal = 0; isPlaying = false; document.getElementById('play-btn').textContent = '▶'; document.getElementById('wave-anim').style.display = 'none'; clearInterval(progressTimer); }
+  }, 100);
+}
+
+function playTrack(icon, title, artist) {
+  document.getElementById('np-thumb').textContent = icon;
+  document.getElementById('np-title').textContent = title;
+  document.getElementById('np-artist').textContent = artist;
+  progressVal = 0;
+  document.getElementById('progress-fill').style.width = '0%';
+  isPlaying = true;
+  document.getElementById('play-btn').textContent = '⏸';
+  document.getElementById('wave-anim').style.display = 'flex';
+  animateProgress();
+}
+
+function seek(e, bar) {
+  const rect = bar.getBoundingClientRect();
+  progressVal = ((e.clientX - rect.left) / rect.width) * 100;
+  document.getElementById('progress-fill').style.width = progressVal + '%';
+}
+
+function setMood(el, mood) {
+  document.querySelectorAll('.mood-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  const moodSongs = {
+    'Chill': [
+      { title: 'Ocean Breeze', artist: 'Blue Horizon', genre: 'Lo-fi', icon: '🌊', color: '#0c4a6e22', rating: '★★★★★' },
+      { title: 'Slow Burn', artist: 'Dusk Radio', genre: 'R&B', icon: '🕯️', color: '#1e293b', rating: '★★★★☆' },
+      { title: 'Coffee & Clouds', artist: 'Mellow Keys', genre: 'Jazz', icon: '☕', color: '#292524', rating: '★★★★☆' },
+    ],
+    'Energetic': songs,
+    'Happy': [
+      { title: 'Sunshine Pop', artist: 'The Zephyrs', genre: 'Pop', icon: '🌞', color: '#78350f22', rating: '★★★★★' },
+      { title: 'Dance Tonight', artist: 'Confetti Club', genre: 'Pop', icon: '🎉', color: '#7c3aed22', rating: '★★★★★' },
+    ],
+    'Melancholy': [
+      { title: 'Empty Streets', artist: 'Rain Chorus', genre: 'Indie', icon: '🌧️', color: '#1e293b', rating: '★★★★☆' },
+      { title: 'Fading Light', artist: 'The Pale Hours', genre: 'Classical', icon: '🌅', color: '#1c1917', rating: '★★★★★' },
+    ],
+    'Focus': [
+      { title: 'Neural Flow', artist: 'Algorithmic', genre: 'Electronic', icon: '🎯', color: '#0c4a6e22', rating: '★★★★☆' },
+      { title: 'Deep Work', artist: 'Ambient Lab', genre: 'Lo-fi', icon: '🧠', color: '#14532d22', rating: '★★★★★' },
+    ],
+    'Romantic': [
+      { title: 'Velvet Kiss', artist: 'Luna Rosa', genre: 'R&B', icon: '💜', color: '#4c1d9522', rating: '★★★★★' },
+      { title: 'Candlelight', artist: 'Soft Strings', genre: 'Classical', icon: '🕯️', color: '#1c0a0a', rating: '★★★★☆' },
+    ],
+  };
+  const data = moodSongs[mood] || songs;
+  document.getElementById('recommended-cards').innerHTML = renderCards(data);
+}
+
+function filterGenre(el, genre) {
+  document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const filtered = genre === 'All' ? songs : songs.filter(s => s.genre === genre);
+  document.getElementById('recommended-cards').innerHTML = renderCards(filtered.length ? filtered : songs);
+}
+
+function handleSearch() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  if (!q) return;
+  const allSongs = [...songs, ...trending.map(t => ({...t, genre: 'Trending', rating: '★★★★☆'}))];
+  const results = allSongs.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q) || (s.genre || '').toLowerCase().includes(q));
+  const sec = document.getElementById('results-section');
+  sec.style.display = 'block';
+  document.getElementById('results-title').textContent = results.length ? `Results for "${document.getElementById('search-input').value}"` : 'No results found';
+  document.getElementById('results-grid').innerHTML = results.length ? renderCards(results) : '<p style="color:var(--muted);grid-column:1/-1">Try searching for "Pop", "Indie", or an artist name.</p>';
+  sec.scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleSearch(); });
+</script>
+</body>
+</html>
